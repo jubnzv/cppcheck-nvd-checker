@@ -354,9 +354,9 @@ if __name__ == '__main__':
     if args.start_cppcheck and not args.clone:
         args.clone = True
 
-    parser = CVEParser(download=False)
+    parser = CVEParser()
     for repo in parser.iter_repositories():
-        bf = BugFinder(repo, cppcheck_bin="/home/jubnzv/Dev/cppcheck/cppcheck")
+        bf = BugFinder(repo)
         changed_files = []
         if args.clone:
             bf.clone_repo()
