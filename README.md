@@ -14,4 +14,4 @@ Then run the script:
 GITHUB_TOKEN='fffffff' python3 checker.py
 ```
 
-This script clones Github repositories affected by NVD CVEs to `/tmp` and runs `cppcheck` in bughunting mode over commits with bug fixes. Please read the source code of the script and the forum discussion before running it.
+Please read the source code of the script and the forum discussion before running it.
