@@ -124,6 +124,7 @@ class GithubRepository:
     user: str
     repo: str
     commit_hash: str
+    commit_url: str
     other_urls: List[str]
     language: str
     cve: CVEInfo
@@ -138,17 +139,16 @@ def print_cve_summary(repo: GithubRepository, print_commands: bool,
         print(f'Bugtype:      {repo.cve.cwe_id}')
     print(f'Language:     {repo.language}')
     print(f'Description:  {repo.cve.description}')
-    if repo.commit_hash:
-        print(f'Fix commit:   {repo.commit_hash}')
-    if repo.other_urls:
-        print('Other links:')
-        for u in repo.other_urls:
-            print(f'  {u}')
+    if repo.commit_url:
+        print(f'Fix commit:   {repo.commit_url}')
     if print_commands:
         print('Commands to start bughunting:')
         if repo.commit_hash:
-            print(f' git clone {repo.url}')
-            print(f' git reset --hard {repo.commit_hash}')
+            print(f' git clone {repo.url[:-1]}.git')
+            name = repo.url.split('/')[-2]
+            print(f' cd {name}')
+            print(f' git reset --hard {repo.commit_hash} # fixed')
+            print(f' git reset --hard HEAD^1 # vulnerable')
         for f in changed_files:
             print(f' cppcheck --bug-hunting {f}')
     print()
@@ -271,6 +271,7 @@ class CVEParser:
                 return GithubRepository(url=f"https://github.com/{user}/{repo}/",
                                         user=user, repo=repo,
                                         commit_hash=commit_hash,
+                                        commit_url=commit_url,
                                         other_urls=other_urls,
                                         language=language, cve=cve)
         return None
