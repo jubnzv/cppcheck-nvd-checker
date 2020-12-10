@@ -171,7 +171,7 @@ if __name__ == '__main__':
     parser = CVEParser()
     for repo in parser.iter_repositories():
         print(repo)
-        bf = BugFinder()
+        bf = BugFinder(repo)
         bf.clone_repo()
         bf.do_check()
         # bf.clean_repo()
