@@ -7,7 +7,7 @@ import os
 import gzip
 import json
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 
 
@@ -119,19 +119,33 @@ class CVEInfo:
 
 
 @dataclass
+class FileInfo:
+    """Information about the changed file received through Github API.
+
+    Args:
+        filename: A relative path to file (e.g. src/Core/main.c)
+        patch: A complete diff with changes
+        github_url: The Raw URL of the corresponding version of this file on Github
+    """
+    filename: str
+    patch: str
+    github_url: Optional[str]
+
+
+@dataclass
 class GithubRepository:
     url: str
     user: str
     repo: str
-    commit_hash: str
-    commit_url: str
+    commit_hash: Optional[str]
+    commit_url: Optional[str]
     other_urls: List[str]
+    changed_files: List[FileInfo]
     language: str
     cve: CVEInfo
 
 
-def print_cve_summary(repo: GithubRepository, print_commands: bool,
-                      changed_files: List[str]):
+def print_cve_summary(repo: GithubRepository, print_commands: bool):
     print(f'{repo.cve.cve_id} (https://nvd.nist.gov/vuln/detail/{repo.cve.cve_id})')
     if CWE_MAP.get(repo.cve.cwe_id):
         print(f'Bugtype:     {CWE_MAP[repo.cve.cwe_id]} ({repo.cve.cwe_id})')
@@ -149,8 +163,8 @@ def print_cve_summary(repo: GithubRepository, print_commands: bool,
             print(f' cd {name}')
             print(f' git reset --hard {repo.commit_hash} # fixed')
             print(f' git reset --hard HEAD^1 # vulnerable')
-        for f in changed_files:
-            print(f' cppcheck --bug-hunting {f}')
+        for f in repo.changed_files:
+            print(f' cppcheck --bug-hunting {f.filename}')
     print()
 
 
@@ -239,6 +253,7 @@ class CVEParser:
             # Filter only supported C/C++ repositories
             repo = self.get_repository(commit_url, commit_hash, other_urls, cve_obj)
             if repo:
+                self.fetch_commit_info(repo)
                 repo.cve_id = cve_id
                 yield repo
 
@@ -273,8 +288,28 @@ class CVEParser:
                                         commit_hash=commit_hash,
                                         commit_url=commit_url,
                                         other_urls=other_urls,
+                                        changed_files=[],
                                         language=language, cve=cve)
         return None
+
+    def fetch_commit_info(self, repo) -> bool:
+        if not repo or not repo.commit_hash:
+            return False
+        headers = {'Authorization': f'token {GITHUB_TOKEN}'}
+        response = requests.get(url=f"https://api.github.com/repos/{repo.user}/{repo.repo}/commits/{repo.commit_hash}",
+                                headers=headers)
+        json = response.json()
+        if not json:
+            return False
+        files = json.get('files')
+        if not files:
+            return False
+        for file in files:
+            filename = file.get('filename')
+            patch = file.get('patch')
+            raw_url = file.get('raw_url')
+            repo.changed_files.append(FileInfo(filename, patch, raw_url))
+        return True
 
 
 class BugFinder:
@@ -362,8 +397,7 @@ if __name__ == '__main__':
         if args.clone:
             bf.clone_repo()
             bf.reset_repo()
-            changed_files = bf.get_changed_files()
-        print_cve_summary(repo, not args.start_cppcheck, changed_files)
+        print_cve_summary(repo, not args.start_cppcheck)
         if args.start_cppcheck:
             bf.do_check()
         if args.clean:
