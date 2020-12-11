@@ -145,7 +145,7 @@ class GithubRepository:
     cve: CVEInfo
 
 
-def print_cve_summary(repo: GithubRepository, print_commands: bool):
+def print_cve_summary_plain(repo: GithubRepository, print_commands: bool):
     print(f'{repo.cve.cve_id} (https://nvd.nist.gov/vuln/detail/{repo.cve.cve_id})')
     if CWE_MAP.get(repo.cve.cwe_id):
         print(f'Bugtype:     {CWE_MAP[repo.cve.cwe_id]} ({repo.cve.cwe_id})')
@@ -166,6 +166,40 @@ def print_cve_summary(repo: GithubRepository, print_commands: bool):
         for f in repo.changed_files:
             print(f' cppcheck --bug-hunting {f.filename}')
     print()
+
+
+def print_cve_summary_html(repo: GithubRepository, print_commands: bool):
+    print(f'<details>')
+    print(f'<summary>{repo.cve.cve_id} ({repo.user}/{repo.repo})</summary>')
+    print(f'<table>')
+    print(f'<tr><td>NVD URL</td>')
+    print(f'<td>https://nvd.nist.gov/vuln/detail/{repo.cve.cve_id}</td></tr>')
+    print(f'<tr><td>Bugtype</td>')
+    print(f'<td><a href=https://cwe.mitre.org/data/definitions/{repo.cve.cwe_id[4:]}.html>{repo.cve.cwe_id}')
+    print(f'</a></td>')
+    print(f'<tr><td>Language</td><td>{repo.language}</td></tr>')
+    print(f'<tr><td>Description</td><td>{repo.cve.description}</td></tr>')
+    if repo.commit_url:
+        print(f'<tr><td>Fix commit</td><td><a href={repo.commit_url}>{repo.commit_hash}</a></td></tr>')
+    print('</table>')
+    if print_commands:
+        print('<p>Commands to start bughunting:</p>')
+        print('<p><pre>')
+        if repo.commit_hash:
+            print(f' git clone {repo.url[:-1]}.git')
+            name = repo.url.split('/')[-2]
+            print(f' cd {name}')
+            print(f' git reset --hard {repo.commit_hash} # fixed')
+            print(f' git reset --hard HEAD^1 # vulnerable')
+        for f in repo.changed_files:
+            print(f' cppcheck --bug-hunting {f.filename}')
+        print('</pre></p>')
+    print(f'<p>Patch contents:</p>')
+    for f in repo.changed_files:
+        print(f'<p><a href={f.github_url}>{f.filename}:</a></p>')
+        print(f'<pre>{f.patch}</pre>')
+    print(f'</details>')
+    print('<hr>')
 
 
 class CVEParser:
@@ -381,6 +415,8 @@ if __name__ == '__main__':
                         help="Remove cloned repositories after the check.")
     parser.add_argument("-s", "--start-cppcheck", action="store_true",
                         help="Start Cppcheck in bughunting mode on the repositories.")
+    parser.add_argument("-f", "--format", type=str, default='plain',
+                        help="Output format (plain|html)")
     args = parser.parse_args()
 
     if not GITHUB_TOKEN:
@@ -390,14 +426,19 @@ if __name__ == '__main__':
     if args.start_cppcheck and not args.clone:
         args.clone = True
 
-    parser = CVEParser()
+    parser = CVEParser(download=True)
     for repo in parser.iter_repositories():
         bf = BugFinder(repo)
         changed_files = []
         if args.clone:
             bf.clone_repo()
             bf.reset_repo()
-        print_cve_summary(repo, not args.start_cppcheck)
+
+        if args.format == 'plain':
+            print_cve_summary_plain(repo, not args.start_cppcheck)
+        else:
+            print_cve_summary_html(repo, not args.start_cppcheck)
+
         if args.start_cppcheck:
             bf.do_check()
         if args.clean:
