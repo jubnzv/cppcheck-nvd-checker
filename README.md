@@ -1,7 +1,7 @@
 # cppcheck-nvd-checker
 
-The auxiliary scripts to verify Cppcheck abstract interpretation engine on NVD CVE datasets.
-See [this thread](https://sourceforge.net/p/cppcheck/discussion/development/thread/834110f0e7/) forum for the background.
+Helper scripts to verify Cppcheck bug-hunting mode on NVD CVE datasets.
+See [this thread](https://sourceforge.net/p/cppcheck/discussion/development/thread/834110f0e7/) on the forum for background.
 
 ## `checker.py`
 
