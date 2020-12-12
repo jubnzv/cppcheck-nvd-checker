@@ -1,17 +1,27 @@
 # cppcheck-nvd-checker
 
-An auxiliary script that runs Cppcheck in bughunting mode on NVD CVE datasets.
+The auxiliary scripts to verify Cppcheck abstract interpretation engine on NVD CVE datasets.
+See [this thread](https://sourceforge.net/p/cppcheck/discussion/development/thread/834110f0e7/) forum for the background.
 
-See [this thread](https://sourceforge.net/p/cppcheck/discussion/development/thread/834110f0e7/) on the Cppcheck forum for the background.
+## `checker.py`
 
-## Usage
+This script is used to download NVD CVE data and collect additional information about vulnerabilities through Github API.
 
-You will need Github API token to run this script. Go to settings and [generate](https://github.com/settings/tokens/new) a new one.
+You will need Github API token to run in. Go to settings and [generate](https://github.com/settings/tokens/new) a new one.
 
-Then run the script:
+Then run it:
 
 ```bash
-GITHUB_TOKEN='fffffff' python3 checker.py
+GITHUB_TOKEN='fffffff' python3 checker.py --format=html > report.html
 ```
 
-Please read the source code of the script and the forum discussion before running it.
+## `equations-printer.py`
+
+Used to generate an HTML report of symbolic equations.
+
+Usage:
+
+```bash
+cppcheck main.cpp --bug-hunting --debug --debug-bug-hunting --verbose 2>&1 > data.txt
+python3 equations-printer.py main.cpp data.txt > report.html
+```
