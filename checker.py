@@ -226,7 +226,7 @@ class CVEParser:
             return json.loads(f.read().decode('utf-8')).get("CVE_Items", {})
         return {}
 
-    def iter_repositories(self):
+    def iter_repositories(self, wanted_cwe_id:str):
         # FIXME: This is getting somewhat clumsy. It will probably be better to use jq.
         for item in self.cve_items:
             cve = item.get('cve')
@@ -259,6 +259,9 @@ class CVEParser:
                     pt_description = pt_data[0].get('description')
                     if pt_description and len(pt_description) >= 1:
                         cwe_id = pt_description[0].get('value', 'Unknown')
+
+            if wanted_cwe_id and cwe_id != wanted_cwe_id:
+                continue
 
             cve_obj = CVEInfo(cve_id=cve_id, cwe_id=cwe_id, description=description_value)
 
@@ -417,6 +420,8 @@ if __name__ == '__main__':
                         help="Start Cppcheck in bughunting mode on the repositories.")
     parser.add_argument("-f", "--format", type=str, default='plain',
                         help="Output format (plain|html)")
+    parser.add_argument("--cwe", type=str, default=None,
+                        help="List specified CWE only")
     args = parser.parse_args()
 
     if not GITHUB_TOKEN:
@@ -427,7 +432,7 @@ if __name__ == '__main__':
         args.clone = True
 
     parser = CVEParser(download=True)
-    for repo in parser.iter_repositories():
+    for repo in parser.iter_repositories(args.cwe):
         bf = BugFinder(repo)
         changed_files = []
         if args.clone:
