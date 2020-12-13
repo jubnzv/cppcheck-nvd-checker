@@ -67,7 +67,7 @@ def print_html(line_infos: Dict[int, SourceLineInfo]):
         print(f'<tr><td><pre>L{line}</pre></td><td><pre>{html.escape(info.code)}</pre></td></tr>')
         if info.constraints:
             print('<tr><td colspan=2><details>')
-            print(f'<summary>Constraints</summary>')
+            print(f'<summary>Information</summary>')
             print('<table>')
             # print('<tr><th>Column</th><th>Expressions</th></tr>')
             for col, exprs in OrderedDict(sorted(info.constraints.items())).items():
