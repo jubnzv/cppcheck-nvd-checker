@@ -12,7 +12,7 @@ from typing import List, Dict, Optional
 @dataclass
 class SourceLineInfo:
     constraints: Dict[int, List[str]]
-    exception: Optional[str] = None
+    exceptions: List[str]
     code: str = ""
 
 
@@ -25,7 +25,7 @@ def read_line_infos(src_path: str, report_path: str) -> Dict[int, SourceLineInfo
         return []
 
     constraint_re = re.compile(r'^([0-9]+):([0-9]+):(.*)$')
-    exception_re = re.compile(r'^ExprEngineException tok.line:([0-9]+).*:(.*)$')
+    exception_re = re.compile(r'^ExprEngineException ([0-9]+):([0-9]+): (.*)$')
     line_infos: Dict[int, SourceLineInfo] = {}
     with open(report_path, 'r') as report_file:
         lines = report_file.read().split('\n')
@@ -35,13 +35,14 @@ def read_line_infos(src_path: str, report_path: str) -> Dict[int, SourceLineInfo
             if not m or len(m.groups()) != 3:
                 # Searching for ExprEngineException
                 me = exception_re.search(lines[i])
-                if me and len(me.groups()) == 2:
+                if me and len(me.groups()) == 3:
                     line = int(me.group(1))
-                    exc = me.group(2)
+                    col = int(me.group(2))
+                    exc = me.group(3) + f' (column {col})'
                     if line_infos.get(line):
-                        line_infos[line].exception = exc
+                        line_infos[line].exceptions.append(exc)
                     else:
-                        line_infos[line] = SourceLineInfo(exception=exc, constraints={})
+                        line_infos[line] = SourceLineInfo(exceptions=[exc], constraints={})
                 continue
 
             # Found expression
@@ -54,7 +55,7 @@ def read_line_infos(src_path: str, report_path: str) -> Dict[int, SourceLineInfo
                 else:
                     line_infos[line].constraints[col] = [desc]
             else:
-                line_infos[line] = SourceLineInfo(constraints={col: [desc]})
+                line_infos[line] = SourceLineInfo(exceptions=[], constraints={col: [desc]})
         if not line_infos:
             print(f'{report_path}: no constraints found')
             return []
@@ -66,7 +67,7 @@ def read_line_infos(src_path: str, report_path: str) -> Dict[int, SourceLineInfo
             if line_infos.get(ln):
                 line_infos[ln].code = lines[i]
             else:
-                line_infos[ln] = SourceLineInfo(code=lines[i], constraints=[])
+                line_infos[ln] = SourceLineInfo(code=lines[i], exceptions=[], constraints=[])
 
     return line_infos
 
@@ -79,9 +80,10 @@ def print_html(line_infos: Dict[int, SourceLineInfo]):
     print('<table><tr><th>Line</th><th>Source</th></tr>')
     for line, info in OrderedDict(sorted(line_infos.items())).items():
         print(f'<tr><td><pre>L{line}</pre></td><td><pre>{html.escape(info.code)}</pre></td></tr>')
-        if info.exception:
+        if info.exceptions:
             print('<tr><td colspan=2 style="color: red;">')
-            print(f'Exception: {info.exception}')
+            for e in info.exceptions:
+                print(f'Exception: {e}')
             print('</td></tr>')
         if info.constraints:
             print('<tr><td colspan=2><details>')
