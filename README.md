@@ -15,13 +15,13 @@ Then run it:
 GITHUB_TOKEN='fffffff' python3 checker.py --format=html > report.html
 ```
 
-## `equations-printer.py`
+## `expr-printer.py`
 
-Used to generate an HTML report of symbolic equations.
+Used to generate an HTML report on symbolic expressions of an abstract interpretation engine.
 
 Usage:
 
 ```bash
 cppcheck main.cpp --bug-hunting --debug --debug-bug-hunting --verbose 2>&1 > data.txt
-python3 equations-printer.py main.cpp data.txt > report.html
+python3 expr-printer.py main.cpp data.txt > report.html
 ```

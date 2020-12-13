@@ -6,12 +6,13 @@ import html
 from functools import reduce
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
 @dataclass
 class SourceLineInfo:
     constraints: Dict[int, List[str]]
+    exception: Optional[str] = None
     code: str = ""
 
 
@@ -24,13 +25,26 @@ def read_line_infos(src_path: str, report_path: str) -> Dict[int, SourceLineInfo
         return []
 
     constraint_re = re.compile(r'^([0-9]+):([0-9]+):(.*)$')
+    exception_re = re.compile(r'^ExprEngineException tok.line:([0-9]+).*:(.*)$')
     line_infos: Dict[int, SourceLineInfo] = {}
     with open(report_path, 'r') as report_file:
         lines = report_file.read().split('\n')
         for i in range(0, len(lines)):
+            # Searching for expressions
             m = constraint_re.search(lines[i])
             if not m or len(m.groups()) != 3:
+                # Searching for ExprEngineException
+                me = exception_re.search(lines[i])
+                if me and len(me.groups()) == 2:
+                    line = int(me.group(1))
+                    exc = me.group(2)
+                    if line_infos.get(line):
+                        line_infos[line].exception = exc
+                    else:
+                        line_infos[line] = SourceLineInfo(exception=exc, constraints={})
                 continue
+
+            # Found expression
             line = int(m.group(1))
             col = int(m.group(2))
             desc = m.group(3)
@@ -65,6 +79,10 @@ def print_html(line_infos: Dict[int, SourceLineInfo]):
     print('<table><tr><th>Line</th><th>Source</th></tr>')
     for line, info in OrderedDict(sorted(line_infos.items())).items():
         print(f'<tr><td><pre>L{line}</pre></td><td><pre>{html.escape(info.code)}</pre></td></tr>')
+        if info.exception:
+            print('<tr><td colspan=2 style="color: red;">')
+            print(f'Exception: {info.exception}')
+            print('</td></tr>')
         if info.constraints:
             print('<tr><td colspan=2><details>')
             print(f'<summary>Information</summary>')
